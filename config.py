@@ -25,13 +25,17 @@ class Settings:
 
 def load_settings(base_dir: Path | None = None) -> Settings:
     root = base_dir or Path(__file__).resolve().parent
+    environment = os.getenv("ENVIRONMENT", "production").strip()
+    internal_api_key = os.getenv("INTERNAL_API_KEY", "").strip()
+    if environment == "production" and not internal_api_key:
+        raise RuntimeError("INTERNAL_API_KEY is required in production.")
     return Settings(
         database_url=os.getenv("DATABASE_URL", "").strip() or None,
-        internal_api_key=os.getenv("INTERNAL_API_KEY", "dev-internal-key").strip(),
+        internal_api_key=internal_api_key or "dev-internal-key",
         route_calculator_url=os.getenv("ROUTE_CALCULATOR_URL", "").strip() or None,
         route_calculator_key=os.getenv("ROUTE_CALCULATOR_KEY", "").strip(),
         route_calculator_path=os.getenv("ROUTE_CALCULATOR_PATH", "/route/calculate").strip() or "/route/calculate",
-        environment=os.getenv("ENVIRONMENT", "production").strip(),
+        environment=environment,
         host=os.getenv("HOST", "0.0.0.0").strip(),
         port=int(os.getenv("PORT", "8000")),
         default_search_radius_km=float(os.getenv("DEFAULT_SEARCH_RADIUS_KM", "5")),

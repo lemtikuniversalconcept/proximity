@@ -5,8 +5,17 @@ services:
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: ENVIRONMENT
         value: production
       - key: PORT
         value: 8000
+      - key: DATABASE_URL
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: ROUTE_CALCULATOR_URL
+        sync: false
+      - key: ROUTE_CALCULATOR_KEY
+        sync: false
