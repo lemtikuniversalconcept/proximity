@@ -520,6 +520,9 @@ class ProximityService:
             if not is_valid:
                 excluded_vehicle_count += 1
                 continue
+            # Skip vehicles without active GPS coordinates instead of crashing on float(None).
+            if vehicle.get("current_lat") is None or vehicle.get("current_lng") is None:
+                continue
             lat = float(vehicle["current_lat"])
             lng = float(vehicle["current_lng"])
             if not (min_lat <= lat <= max_lat and min_lng <= lng <= max_lng):
