@@ -504,6 +504,9 @@ class ProximityService:
                     }
                 )
                 continue
+            # Skip officers without active GPS coordinates instead of crashing on float(None).
+            if officer.get("current_lat") is None or officer.get("current_lng") is None:
+                continue
             total_on_shift += 1
             lat = float(officer["current_lat"])
             lng = float(officer["current_lng"])
