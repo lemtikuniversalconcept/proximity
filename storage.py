@@ -452,7 +452,7 @@ class ProximityStore:
                     NULL::text AS current_building_id,
                     NULL::integer AS current_floor,
                     NULL::jsonb AS equipment_carried
-                FROM inventory.officers o
+                FROM officers o
                 WHERE o.org_id = %s
             """
             with psycopg2.connect(self.database_url) as conn:  # type: ignore[arg-type]
@@ -482,7 +482,7 @@ class ProximityStore:
                     v.location_updated_at,
                     NULL::numeric AS hours_on_shift,
                     v.special_equipment
-                FROM inventory.vehicles v
+                FROM vehicles v
                 WHERE v.org_id = %s
             """
             with psycopg2.connect(self.database_url) as conn:  # type: ignore[arg-type]
@@ -496,7 +496,7 @@ class ProximityStore:
         if self.database_url and psycopg2 is not None:
             sql = """
                 SELECT i.id, i.assigned_officer_ids
-                FROM sod.incidents i
+                FROM incidents i
                 WHERE i.org_id = %s
                   AND i.status NOT IN ('resolved', 'closed', 'escalated_closed')
                   AND (%s IS NULL OR i.id <> %s)
