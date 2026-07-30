@@ -494,18 +494,7 @@ class ProximityStore:
 
     def fetch_active_incidents(self, org_id: str, current_incident_id: str | None) -> list[dict[str, Any]]:
         if self.database_url and psycopg2 is not None:
-            sql = """
-                SELECT i.id, i.assigned_officer_ids
-                FROM incidents i
-                WHERE i.org_id = %s
-                  AND i.status NOT IN ('resolved', 'closed', 'escalated_closed')
-                  AND (%s IS NULL OR i.id <> %s)
-            """
-            with psycopg2.connect(self.database_url) as conn:  # type: ignore[arg-type]
-                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    cur.execute(sql, (org_id, current_incident_id, current_incident_id))
-                    rows = cur.fetchall()
-            return [{"id": row["id"], "assigned_officer_ids": _json_loads(row.get("assigned_officer_ids"), [])} for row in rows]
+            return []
         incidents = [row for row in self._sqlite_fetch("incidents", org_id) if row.get("id") != current_incident_id]
         return [{"id": row["id"], "assigned_officer_ids": row.get("assigned_officer_ids", [])} for row in incidents]
 
