@@ -494,7 +494,51 @@ class ProximityStore:
 
     def fetch_active_incidents(self, org_id: str, current_incident_id: str | None) -> list[dict[str, Any]]:
         if self.database_url and psycopg2 is not None:
-            return []
+            # A prior version of this query selected incidents.assigned_officer_ids directly -
+            # that column doesn't actually exist (confirmed against the live schema), which is
+            # almost certainly why this was stubbed to return [] outright: a crashing query on
+            # every single /find call is worse than losing the exclusion it powered, so that was
+            # the right emergency call at the time. There's still no dedicated assigned-officer
+            # column or join table anywhere in the real system - incidents.dispatch_plan
+            # (recommended_actions[].action_type == "dispatch_officer", or an officers_dispatched
+            # array if one is ever populated) is the only place an officer/incident link is
+            # recorded at all, so that's what this reads instead. It's a conservative proxy:
+            # worst case it holds back an officer who was only ever recommended and never
+            # actually sent, which is a far smaller cost than recommending the same officer to
+            # two incidents at once - the gap this function existed to close in the first place.
+            sql = """
+                SELECT id, dispatch_plan
+                FROM incidents
+                WHERE organisation_id = %s
+                  AND id != %s
+                  AND status <> 'resolved'
+                  AND dispatch_plan IS NOT NULL
+            """
+            try:
+                with psycopg2.connect(self.database_url) as conn:  # type: ignore[arg-type]
+                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute(sql, (org_id, current_incident_id or ""))
+                        rows = cur.fetchall()
+            except Exception:
+                return []
+            result: list[dict[str, Any]] = []
+            for row in rows:
+                plan = row.get("dispatch_plan")
+                if isinstance(plan, str):
+                    plan = _json_loads(plan, {})
+                plan = plan or {}
+                officer_ids: list[str] = []
+                for action in plan.get("recommended_actions") or []:
+                    if isinstance(action, dict) and action.get("action_type") == "dispatch_officer" and action.get("officer_id"):
+                        officer_ids.append(str(action["officer_id"]))
+                for entry in plan.get("officers_dispatched") or []:
+                    if isinstance(entry, str):
+                        officer_ids.append(entry)
+                    elif isinstance(entry, dict) and entry.get("officer_id"):
+                        officer_ids.append(str(entry["officer_id"]))
+                if officer_ids:
+                    result.append({"id": row.get("id"), "assigned_officer_ids": list(dict.fromkeys(officer_ids))})
+            return result
         incidents = [row for row in self._sqlite_fetch("incidents", org_id) if row.get("id") != current_incident_id]
         return [{"id": row["id"], "assigned_officer_ids": row.get("assigned_officer_ids", [])} for row in incidents]
 
